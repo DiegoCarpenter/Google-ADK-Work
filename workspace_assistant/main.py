@@ -74,6 +74,12 @@ def main():
     agent = create_agent()
     runner = InMemoryRunner(agent=agent)
 
+    asyncio.run(runner.session_service.create_session(
+        app_name=runner.app_name,
+        user_id=USER_ID,
+        session_id=SESSION_ID,
+    ))
+
     if args.interactive:
         interactive_mode(runner)
     elif args.query:

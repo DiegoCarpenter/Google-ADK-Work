@@ -21,33 +21,40 @@ load_dotenv()
 MCP_CONFIG_PATH = Path(__file__).parent.parent / "config" / "mcp_servers.json"
 
 
-# =============================================================================
+# ==============================
 # REQUIRED: Direct Configuration
-# =============================================================================
-# TODO: Implement get_github_mcp_toolset()
-# Configure the GitHub MCP server directly in Python code.
-#
-# Example structure:
-#
-# def get_github_mcp_toolset() -> McpToolset:
-#     token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
-#     if not token:
-#         raise ValueError("GITHUB_PERSONAL_ACCESS_TOKEN not set in .env")
-#
-#     server_params = StdioServerParameters(
-#         command="npx",
-#         args=["-y", "@modelcontextprotocol/server-github"],
-#         env={"GITHUB_PERSONAL_ACCESS_TOKEN": token}
-#     )
-#
-#     return McpToolset(
-#         connection_params=StdioConnectionParams(server_params=server_params)
-#     )
+# =======================================================
+def get_github_mcp_toolset() -> McpToolset:
+    """Create a McpToolset connected to the GitHub MCP server.
+
+    Reads GITHUB_PERSONAL_ACCESS_TOKEN from the environment (.env) and
+    configures the official GitHub MCP server via stdio (npx).
+
+    Returns:
+        A configured McpToolset the agent can use to call GitHub tools
+        (e.g. search_repositories, list_issues, get_file_contents).
+
+    Raises:
+        ValueError: If GITHUB_PERSONAL_ACCESS_TOKEN is not set.
+    """
+    token = os.getenv("GITHUB_PERSONAL_ACCESS_TOKEN")
+    if not token:
+        raise ValueError("GITHUB_PERSONAL_ACCESS_TOKEN not set in .env")
+
+    server_params = StdioServerParameters(
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-github"],
+        env={"GITHUB_PERSONAL_ACCESS_TOKEN": token},
+    )
+
+    return McpToolset(
+        connection_params=StdioConnectionParams(server_params=server_params)
+    )
 
 
-# =============================================================================
+# ================================================================
 # OPTIONAL: File-based Configuration
-# =============================================================================
+# ================================================================
 def load_mcp_config() -> dict:
     """Load MCP server configuration from JSON file."""
     if not MCP_CONFIG_PATH.exists():
@@ -67,31 +74,37 @@ def load_mcp_config() -> dict:
     return config
 
 
-# TODO: Implement get_github_mcp_toolset_from_config()
-# Load configuration from config/mcp_servers.json
-#
-# Example structure:
-#
-# def get_github_mcp_toolset_from_config() -> McpToolset:
-#     config = load_mcp_config()
-#     github = config["mcpServers"]["github"]
-#
-#     token = github["env"].get("GITHUB_PERSONAL_ACCESS_TOKEN")
-#     if not token:
-#         raise ValueError("GITHUB_PERSONAL_ACCESS_TOKEN not set in .env")
-#
-#     server_params = StdioServerParameters(
-#         command=github["command"],
-#         args=github["args"],
-#         env=github["env"]
-#     )
-#
-#     return McpToolset(
-#         connection_params=StdioConnectionParams(server_params=server_params)
-#     )
+def get_github_mcp_toolset_from_config() -> McpToolset:
+    """Create a McpToolset for GitHub using config/mcp_servers.json.
+
+    Loads the server command/args/env from the JSON config file and
+    resolves any ${ENV_VAR} placeholders (e.g. the GitHub token) from
+    the environment.
+
+    Returns:
+        A configured McpToolset the agent can use to call GitHub tools.
+
+    Raises:
+        ValueError: If GITHUB_PERSONAL_ACCESS_TOKEN is not set.
+    """
+    config = load_mcp_config()
+    github = config["mcpServers"]["github"]
+
+    token = github["env"].get("GITHUB_PERSONAL_ACCESS_TOKEN")
+    if not token:
+        raise ValueError("GITHUB_PERSONAL_ACCESS_TOKEN not set in .env")
+
+    server_params = StdioServerParameters(
+        command=github["command"],
+        args=github["args"],
+        env=github["env"],
+    )
+
+    return McpToolset(
+        connection_params=StdioConnectionParams(server_params=server_params)
+    )
 
 
-# =============================================================================
 # BONUS (+25 points) - Tool Search Pattern
 # =============================================================================
 # Implement defer_loading to reduce token usage by ~80%
@@ -150,8 +163,6 @@ def load_mcp_config() -> dict:
 #     )
 
 
-mcp_tools = [
-    # Add your McpToolset here after implementing one of the options above
-    # Example: get_github_mcp_toolset()
-    # Example: get_github_mcp_toolset_from_config()
-]
+# NOTE: McpToolset opens a live connection (spawns the npx process), so we
+# don't instantiate it at import time here. agent.py calls
+# get_github_mcp_toolset() directly when building the agent.
